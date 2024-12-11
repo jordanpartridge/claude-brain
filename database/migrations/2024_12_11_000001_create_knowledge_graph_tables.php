@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         // Entities table - Base table for all nodes in our knowledge graph
@@ -24,12 +21,26 @@ return new class extends Migration
             $table->index('created_at');
         });
 
+        // Relationship types table - Defines valid relationship types and their rules
+        Schema::create('relationship_types', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->unique();
+            $table->string('inverse_name')->nullable();
+            $table->boolean('is_bidirectional')->default(false);
+            $table->json('allowed_entity_types')->nullable();
+            $table->json('required_metadata_fields')->nullable();
+            $table->json('validation_rules')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
         // Relationships table - Edges in our knowledge graph
         Schema::create('relationships', function (Blueprint $table) {
             $table->id();
             $table->foreignId('from_entity_id')->constrained('entities')->onDelete('cascade');
             $table->foreignId('to_entity_id')->constrained('entities')->onDelete('cascade');
-            $table->string('type', 50);  // follows, created, belongs_to, etc.
+            $table->string('type', 50);  // references relationship_types.name
+            $table->foreignId('inverse_of')->nullable()->constrained('relationships')->onDelete('cascade');
             $table->json('metadata')->nullable();  // Additional relationship data
             $table->timestamp('started_at')->nullable();  // When the relationship began
             $table->timestamp('ended_at')->nullable();    // Optional end time
@@ -39,6 +50,7 @@ return new class extends Migration
             $table->index(['from_entity_id', 'type']);
             $table->index(['to_entity_id', 'type']);
             $table->index('started_at');
+            $table->foreign('type')->references('name')->on('relationship_types');
         });
 
         // Observations table - Facts and properties about entities
@@ -74,14 +86,12 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('interactions');
         Schema::dropIfExists('observations');
         Schema::dropIfExists('relationships');
+        Schema::dropIfExists('relationship_types');
         Schema::dropIfExists('entities');
     }
 };

@@ -106,20 +106,23 @@ test('entity handles unicode names correctly', function() {
     expect($entity->fresh()->name)->toBe('テスト_entidad_πρότυπο');
 });
 
-test('entity properly validates relationship types')
-    ->with([
-        'normal' => 'owns',
-        'with spaces' => 'belongs to',
-        'with symbols' => 'parent->child',
-        'too long' => str_repeat('a', 51)
-    ])
-    ->expect(fn ($type) => 
-        fn() => Entity::factory()->create()->relateTo(
-            Entity::factory()->create(),
-            $type
-        )
-    )
-    ->toBeValid($type !== str_repeat('a', 51));
+test('entity validates relationship types', function($typeName, $typeValue, $shouldBeValid) {
+    $test = fn() => Entity::factory()->create()->relateTo(
+        Entity::factory()->create(),
+        $typeValue
+    );
+
+    if ($shouldBeValid) {
+        expect($test())->toBeInstanceOf(\App\Models\Relationship::class);
+    } else {
+        expect($test)->toThrow(ValidationException::class);
+    }
+})->with([
+    ['normal', 'owns', true],
+    ['with spaces', 'belongs to', true],
+    ['with symbols', 'parent->child', true],
+    ['too long', str_repeat('a', 51), false]
+]);
 
 test('entity metadata dot notation works deeply', function() {
     $entity = Entity::factory()->create([

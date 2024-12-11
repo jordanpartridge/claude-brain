@@ -7,13 +7,14 @@
 |
 | The closure you provide to your test functions is always bound to a specific PHPUnit test
 | case class. By default, that class is "PHPUnit\Framework\TestCase". Of course, you may
-| need to change it using the "pest()" function to bind a different classes or traits.
+| need to change it using the "uses()" function to bind a different classes or traits.
 |
 */
 
-pest()->extend(Tests\TestCase::class)
- // ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
-    ->in('Feature');
+uses(
+    Tests\TestCase::class,
+    Illuminate\Foundation\Testing\RefreshDatabase::class,
+)->in('Feature', 'Unit');
 
 /*
 |--------------------------------------------------------------------------
@@ -26,8 +27,12 @@ pest()->extend(Tests\TestCase::class)
 |
 */
 
-expect()->extend('toBeOne', function () {
-    return $this->toBe(1);
+expect()->extend('toBeValid', function (bool $valid) {
+    if ($valid) {
+        return $this->toBeInstanceOf(\App\Models\Entity::class);
+    }
+    
+    return $this->toThrow(\Illuminate\Validation\ValidationException::class);
 });
 
 /*
@@ -41,7 +46,19 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * Create a test graph structure with the given depth
+ */
+function createGraphStructure($rootEntity, int $depth): void
 {
-    // ..
+    if ($depth <= 0) {
+        return;
+    }
+
+    $children = \App\Models\Entity::factory(2)->create();
+    
+    foreach ($children as $child) {
+        $rootEntity->relateTo($child, 'contains');
+        createGraphStructure($child, $depth - 1);
+    }
 }
